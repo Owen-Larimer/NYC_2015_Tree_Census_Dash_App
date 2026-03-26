@@ -11,7 +11,7 @@ The data we used for this project comes from data.gov, and is the 2015 NYC Tree 
 
 Additionally, you can find the metadata information page at the [City of New York's official data page](https://data.cityofnewyork.us/Environment/2015-Street-Tree-Census-Tree-Data/uvpi-gqnh/about_data). This page will tell you all about each variable/column.
 
-Let's start by viewing our data in Python/Jupyter and getting a sense for its capabilities and what we want to do with it. We'll need a number of libraries for this whole project:
+Let's start by viewing our data in Python/Jupyter and getting a sense for its capabilities and what we want to do with it (See "Viewing_data.ipynb"). We'll need a number of libraries for this whole project:
 
 ```python
 import numpy as np
@@ -217,11 +217,99 @@ fig.update_layout(title="Tree Health Distribution for Top 6 NYC Species",
     height=500
 )
 
+
+
+
 fig.show()
 ```
 <img width="2472" height="913" alt="image" src="https://github.com/user-attachments/assets/187ce8dd-5d7d-410c-899a-6ae047a78ff9" />
 
+Beyond just being more visually appealing than the dataframe itself, we'll be able to connect figures like this to features of Dash like toggles, search-dropdowns, and sliders to subset our data in real time to reflect new relationships within the dash app.
+
+
+Say we want to know the most common tree species in NYC. A bar chart might be the most beneficial for that:
+
+```python
+# Count the number of trees per species
+species_counts = nyc_trees['spc_common'].value_counts()
+
+# Select top 8 species
+top_species = species_counts.head(8)
+
+# Convert to a dataframe for plotting
+top_species_df = top_species.reset_index()
+top_species_df.columns = ['Species', 'Count']
+
+# Make bar plot
+fig = px.bar(top_species_df, y='Species', x='Count', text='Count', color='Count', color_continuous_scale='Greens', title='Most Common Tree Species in NYC', orientation='h')
+
+# Add nicer formatting
+fig.update_traces(texttemplate='%{text:,}', textposition='outside')
+fig.update_layout(
+    xaxis_title='Species',
+    yaxis_title='Number of Trees',
+    coloraxis_showscale=False,
+    uniformtext_minsize=8,
+    uniformtext_mode='hide'
+)
+
+fig.show()
+```
+
+<img width="2390" height="612" alt="image" src="https://github.com/user-attachments/assets/496d69d1-e712-4a5b-ba5a-3fc3f4ecffce" />
+With figures such as bar chart, it may be beneficial to try both orientations to see which fits better in your end app, For now, we'll stick with horizontal. 
 
 
 
+I'm thinking we'll want a section about tree health in our app. It's tough to say what the overall "healthiest" species is, as a tree is only given a score of 1-3, and problems with a tree are not necessarily indicative of poor health. Additionally, we must recognize that all our data was recorded by people investigating the trees, and thus is opened to potential bias or errors in recording. However, with so many individual trees, we can gain a collective sense of what trees seem to do well in an urban environment like NYC.
 
+So, what *is* our healthiest species? That is, what kind of tree in NYC was the healthiest on average in 2015?
+
+Let's start by subsetting only trees with 5 or more actual instances:
+```python
+# Copy your original dataframe to avoid modifying it
+df = nyc_trees.copy()
+
+# Only keep species with at least 10 instances
+species_counts = df['spc_common'].value_counts()
+species_eligible = species_counts[species_counts >= 5].index
+df_filtered = df[df['spc_common'].isin(species_eligible)]
+
+# Compute average health per species
+avg_health_by_species = df_filtered.groupby('spc_common')['health_numeric'].mean()
+
+# Find healthiest and unhealthiest species
+healthiest_species = avg_health_by_species.idxmax()
+unhealthiest_species = avg_health_by_species.idxmin()
+
+print("Healthiest species:", healthiest_species)
+print("Unhealthiest species:", unhealthiest_species)
+
+# ------------------------------
+# Pie chart for healthiest species
+# ------------------------------
+df_healthy = df_filtered[df_filtered['spc_common'] == healthiest_species]
+health_counts_healthy = df_healthy['health'].value_counts().reindex(['Good','Fair','Poor']).fillna(0)
+
+fig_healthiest = px.pie(
+    names=health_counts_healthy.index,
+    values=health_counts_healthy.values,
+    title=f"Health Distribution of {healthiest_species} (Healthiest on Average)",
+    color=health_counts_healthy.index,
+    color_discrete_map={
+        "Good": "#2E8B57",
+        "Fair": "#90EE90",
+        "Poor": "#C19A6B"
+    }
+)
+fig_healthiest.show()
+
+```
+
+<img width="1293" height="642" alt="image" src="https://github.com/user-attachments/assets/d8e40b13-ad47-4265-845f-725e64cc57e9" />
+
+
+And we can do the same with the unhealthiest species. That is, which species had the highest percentage of individuals given the "Poor" health tag?
+
+```python
+```
